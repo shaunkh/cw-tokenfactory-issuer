@@ -3,14 +3,14 @@ use std::convert::TryInto;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, SubMsg,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, SubMsg,
 };
 use cosmwasm_std::{CosmosMsg, Reply};
 use cw2::set_contract_version;
 
 use osmo_bindings::OsmosisMsg;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
-    MsgCreateDenom, MsgCreateDenomResponse, MsgSetBeforeSendListener,
+    MsgCreateDenom, MsgCreateDenomResponse, MsgSetBeforeSendHook,
 };
 
 use crate::error::ContractError;
@@ -84,7 +84,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<OsmosisMsg>
         // set beforesend listener to this contract
         // this will trigger sudo endpoint before any bank send
         // which makes blacklisting / freezing possible
-        let msg_set_beforesend_listener: CosmosMsg<OsmosisMsg> = MsgSetBeforeSendListener {
+        let msg_set_beforesend_listener: CosmosMsg<OsmosisMsg> = MsgSetBeforeSendHook {
             sender: env.contract.address.to_string(),
             denom: new_token_denom.clone(),
             cosmwasm_address: env.contract.address.to_string(),
@@ -157,35 +157,37 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::IsFrozen {} => to_binary(&queries::query_is_frozen(deps)?),
-        QueryMsg::Denom {} => to_binary(&queries::query_denom(deps)?),
-        QueryMsg::Owner {} => to_binary(&queries::query_owner(deps)?),
+        QueryMsg::IsFrozen {} => to_json_binary(&queries::query_is_frozen(deps)?),
+        QueryMsg::Denom {} => to_json_binary(&queries::query_denom(deps)?),
+        QueryMsg::Owner {} => to_json_binary(&queries::query_owner(deps)?),
         QueryMsg::BurnAllowance { address } => {
-            to_binary(&queries::query_burn_allowance(deps, address)?)
+            to_json_binary(&queries::query_burn_allowance(deps, address)?)
         }
         QueryMsg::BurnAllowances { start_after, limit } => {
-            to_binary(&queries::query_burn_allowances(deps, start_after, limit)?)
+            to_json_binary(&queries::query_burn_allowances(deps, start_after, limit)?)
         }
         QueryMsg::MintAllowance { address } => {
-            to_binary(&queries::query_mint_allowance(deps, address)?)
+            to_json_binary(&queries::query_mint_allowance(deps, address)?)
         }
         QueryMsg::MintAllowances { start_after, limit } => {
-            to_binary(&queries::query_mint_allowances(deps, start_after, limit)?)
+            to_json_binary(&queries::query_mint_allowances(deps, start_after, limit)?)
         }
         QueryMsg::IsBlacklisted { address } => {
-            to_binary(&queries::query_is_blacklisted(deps, address)?)
+            to_json_binary(&queries::query_is_blacklisted(deps, address)?)
         }
         QueryMsg::Blacklistees { start_after, limit } => {
-            to_binary(&queries::query_blacklistees(deps, start_after, limit)?)
+            to_json_binary(&queries::query_blacklistees(deps, start_after, limit)?)
         }
         QueryMsg::IsBlacklister { address } => {
-            to_binary(&queries::query_is_blacklister(deps, address)?)
+            to_json_binary(&queries::query_is_blacklister(deps, address)?)
         }
-        QueryMsg::BlacklisterAllowances { start_after, limit } => to_binary(
+        QueryMsg::BlacklisterAllowances { start_after, limit } => to_json_binary(
             &queries::query_blacklister_allowances(deps, start_after, limit)?,
         ),
-        QueryMsg::IsFreezer { address } => to_binary(&queries::query_is_freezer(deps, address)?),
-        QueryMsg::FreezerAllowances { start_after, limit } => to_binary(
+        QueryMsg::IsFreezer { address } => {
+            to_json_binary(&queries::query_is_freezer(deps, address)?)
+        }
+        QueryMsg::FreezerAllowances { start_after, limit } => to_json_binary(
             &queries::query_freezer_allowances(deps, start_after, limit)?,
         ),
     }
