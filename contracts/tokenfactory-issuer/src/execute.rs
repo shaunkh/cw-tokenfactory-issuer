@@ -1,7 +1,7 @@
 use cosmwasm_std::{coins, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Uint128};
-use osmo_bindings::OsmosisMsg;
-use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
-use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgBurn, MsgSetDenomMetadata};
+use neutron_sdk::bindings::msg::{self, NeutronMsg};
+// use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
+// use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgBurn, MsgSetDenomMetadata};
 
 use crate::error::ContractError;
 use crate::helpers::{check_bool_allowance, check_is_contract_owner};
@@ -16,7 +16,7 @@ pub fn mint(
     info: MessageInfo,
     to_address: String,
     amount: Uint128,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // validate that to_address is a valid address
     deps.api.addr_validate(&to_address)?;
 
@@ -47,7 +47,7 @@ pub fn mint(
 
     // create tokenfactory MsgMint which mints coins to the contract address
     let mint_tokens_msg =
-        OsmosisMsg::mint_contract_tokens(denom.clone(), amount, env.contract.address.into_string());
+        NeutronMsg::submit_mint_tokens(denom.clone(), amount, env.contract.address.into_string());
 
     // send newly minted coins from contract to designated recipient
     let send_tokens_msg = BankMsg::Send {
@@ -70,7 +70,7 @@ pub fn burn(
     info: MessageInfo,
     amount: Uint128,
     address: String,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // don't allow burning of 0 coins
     if amount.is_zero() {
         return Err(ContractError::ZeroAmount {});
@@ -99,9 +99,9 @@ pub fn burn(
     // create tokenfactory MsgBurn which burns coins from the contract address
     // NOTE: this requires the contract to own the tokens already
     let burn_from_address = deps.api.addr_validate(&address)?;
-    let burn_tokens_msg: cosmwasm_std::CosmosMsg<OsmosisMsg> = MsgBurn {
-        sender: env.contract.address.to_string(),
-        amount: Some(Coin::new(amount.u128(), denom).into()),
+    let burn_tokens_msg: cosmwasm_std::CosmosMsg<NeutronMsg> = NeutronMsg::BurnTokens {
+        denom,
+        amount,
         burn_from_address: burn_from_address.to_string(),
     }
     .into();
@@ -118,7 +118,7 @@ pub fn change_contract_owner(
     deps: DepsMut,
     info: MessageInfo,
     new_owner: String,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // Only allow current contract owner to change owner
     check_is_contract_owner(deps.as_ref(), info.sender)?;
 
@@ -138,7 +138,7 @@ pub fn change_tokenfactory_admin(
     deps: DepsMut,
     info: MessageInfo,
     new_admin: String,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // Only allow current contract owner to change tokenfactory admin
     check_is_contract_owner(deps.as_ref(), info.sender)?;
 
@@ -146,7 +146,7 @@ pub fn change_tokenfactory_admin(
     let new_admin_addr = deps.api.addr_validate(&new_admin)?;
 
     // construct tokenfactory change admin msg
-    let change_admin_msg = OsmosisMsg::ChangeAdmin {
+    let change_admin_msg = NeutronMsg::ChangeAdmin {
         denom: DENOM.load(deps.storage)?,
         new_admin_address: new_admin_addr.into(),
     };
@@ -158,29 +158,12 @@ pub fn change_tokenfactory_admin(
         .add_attribute("new_admin", new_admin))
 }
 
-pub fn set_denom_metadata(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    metadata: Metadata,
-) -> Result<Response<OsmosisMsg>, ContractError> {
-    // only allow current contract owner to set denom metadata
-    check_is_contract_owner(deps.as_ref(), info.sender)?;
-
-    Ok(Response::new()
-        .add_attribute("action", "set_denom_metadata")
-        .add_message(MsgSetDenomMetadata {
-            sender: env.contract.address.to_string(),
-            metadata: Some(metadata),
-        }))
-}
-
 pub fn set_blacklister(
     deps: DepsMut,
     info: MessageInfo,
     address: String,
     status: bool,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // Only allow current contract owner to set blacklister permission
     check_is_contract_owner(deps.as_ref(), info.sender)?;
 
@@ -207,7 +190,7 @@ pub fn set_freezer(
     info: MessageInfo,
     address: String,
     status: bool,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // Only allow current contract owner to set freezer permission
     check_is_contract_owner(deps.as_ref(), info.sender)?;
 
@@ -234,7 +217,7 @@ pub fn set_burner(
     info: MessageInfo,
     address: String,
     allowance: Uint128,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // Only allow current contract owner to set burner allowance
     check_is_contract_owner(deps.as_ref(), info.sender)?;
 
@@ -261,7 +244,7 @@ pub fn set_minter(
     info: MessageInfo,
     address: String,
     allowance: Uint128,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // Only allow current contract owner to set minter allowance
     check_is_contract_owner(deps.as_ref(), info.sender)?;
 
@@ -287,7 +270,7 @@ pub fn freeze(
     deps: DepsMut,
     info: MessageInfo,
     status: bool,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // check to make sure that the sender has freezer permissions
     check_bool_allowance(deps.as_ref(), info, FREEZER_ALLOWANCES)?;
 
@@ -306,7 +289,7 @@ pub fn blacklist(
     info: MessageInfo,
     address: String,
     status: bool,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     // check to make sure that the sender has blacklister permissions
     check_bool_allowance(deps.as_ref(), info, BLACKLISTER_ALLOWANCES)?;
 

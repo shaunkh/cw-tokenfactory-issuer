@@ -142,9 +142,6 @@ pub fn execute(
         ExecuteMsg::SetFreezer { address, status } => {
             execute::set_freezer(deps, info, address, status)
         }
-        ExecuteMsg::SetDenomMetadata { metadata } => {
-            execute::set_denom_metadata(deps, env, info, metadata)
-        }
     }
 }
 

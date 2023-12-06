@@ -35,10 +35,6 @@ pub enum ExecuteMsg {
     ChangeContractOwner {
         new_owner: String,
     },
-    SetDenomMetadata {
-        /// Set denom metadata. see: https://docs.cosmos.network/main/modules/bank#denom-metadata.
-        metadata: Metadata,
-    },
 
     /// Grant/revoke mint allowance.
     SetMinter {
