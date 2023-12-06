@@ -86,7 +86,7 @@ pub fn reply(
         // set beforesend hook to this contract
         // this will trigger sudo endpoint before any bank send
         // which makes blacklisting / freezing possible
-        let msg_set_beforesend_listener: CosmosMsg<MsgSetBeforeSendHook> =
+        let msg_set_beforesend_hook: CosmosMsg<MsgSetBeforeSendHook> =
             cosmwasm_std::CosmosMsg::Custom(MsgSetBeforeSendHook {
                 sender: env.contract.address.to_string(),
                 denom: new_token_denom.clone(),
@@ -96,7 +96,7 @@ pub fn reply(
 
         return Ok(Response::new()
             .add_attribute("denom", new_token_denom)
-            .add_message(msg_set_beforesend_listener));
+            .add_message(msg_set_beforesend_hook));
     }
 
     unreachable!()
