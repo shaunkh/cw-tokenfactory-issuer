@@ -8,15 +8,16 @@ use cosmwasm_std::{
 use cosmwasm_std::{CosmosMsg, Reply};
 use cw2::set_contract_version;
 
-use osmo_bindings::OsmosisMsg;
-use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
-    MsgCreateDenom, MsgCreateDenomResponse, MsgSetBeforeSendHook,
-};
+use neutron_sdk::bindings::msg::NeutronMsg;
+use neutron_sdk::bindings::msg::NeutronMsg::CreateDenom;
 
 use crate::error::ContractError;
 use crate::execute;
 use crate::hooks;
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
+use crate::msg::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, MsgCreateDenomResponse, MsgSetBeforeSendHook, QueryMsg,
+    SudoMsg,
+};
 use crate::queries;
 use crate::state::{DENOM, IS_FROZEN, OWNER};
 
@@ -32,7 +33,7 @@ pub fn instantiate(
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     OWNER.save(deps.storage, &info.sender)?;
@@ -48,10 +49,7 @@ pub fn instantiate(
                     // create new denom, if denom is created successfully,
                     // set beforesend listener to this contract on reply
                     SubMsg::reply_on_success(
-                        <CosmosMsg<OsmosisMsg>>::from(MsgCreateDenom {
-                            sender: env.contract.address.to_string(),
-                            subdenom,
-                        }),
+                        <CosmosMsg<NeutronMsg>>::from(CreateDenom { subdenom }),
                         CREATE_DENOM_REPLY_ID,
                     ),
                 ))
@@ -75,21 +73,26 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, 
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<OsmosisMsg>, ContractError> {
+pub fn reply(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response<MsgSetBeforeSendHook>, ContractError> {
     // after instantiate contract
     if msg.id == CREATE_DENOM_REPLY_ID {
         let MsgCreateDenomResponse { new_token_denom } = msg.result.try_into()?;
         DENOM.save(deps.storage, &new_token_denom)?;
 
-        // set beforesend listener to this contract
+        // set beforesend hook to this contract
         // this will trigger sudo endpoint before any bank send
         // which makes blacklisting / freezing possible
-        let msg_set_beforesend_listener: CosmosMsg<OsmosisMsg> = MsgSetBeforeSendHook {
-            sender: env.contract.address.to_string(),
-            denom: new_token_denom.clone(),
-            cosmwasm_address: env.contract.address.to_string(),
-        }
-        .into();
+        let msg_set_beforesend_listener: CosmosMsg<MsgSetBeforeSendHook> =
+            cosmwasm_std::CosmosMsg::Custom(MsgSetBeforeSendHook {
+                sender: env.contract.address.to_string(),
+                denom: new_token_denom.clone(),
+                cosmwasm_address: env.contract.address.to_string(),
+            })
+            .into();
 
         return Ok(Response::new()
             .add_attribute("denom", new_token_denom)
@@ -105,7 +108,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response<OsmosisMsg>, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
     match msg {
         // Executive Functions
         ExecuteMsg::Mint { to_address, amount } => {

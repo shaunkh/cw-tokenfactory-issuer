@@ -5,6 +5,12 @@ use cosmwasm_std::{Coin, Uint128};
 pub use osmosis_std::types::cosmos::bank::v1beta1::{DenomUnit, Metadata};
 
 #[cw_serde]
+pub struct MsgSetBeforeSendHook {
+    pub sender: String,
+    pub denom: String,
+    pub cosmwasm_address: String,
+}
+#[cw_serde]
 pub enum InstantiateMsg {
     /// `NewToken` will create a new token when instantiate the contract.
     /// Newly created token will have full denom as `factory/<contract_address>/<subdenom>`.
@@ -212,4 +218,9 @@ pub struct BlacklisterAllowancesResponse {
 #[cw_serde]
 pub struct FreezerAllowancesResponse {
     pub freezers: Vec<StatusInfo>,
+}
+
+#[cw_serde]
+pub struct MsgCreateDenomResponse {
+    pub new_token_denom: String,
 }
