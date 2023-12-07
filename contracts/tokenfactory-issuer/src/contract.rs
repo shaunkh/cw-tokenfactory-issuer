@@ -9,14 +9,13 @@ use cosmwasm_std::{CosmosMsg, Reply};
 use cw2::set_contract_version;
 
 use neutron_sdk::bindings::msg::NeutronMsg;
-use neutron_sdk::bindings::msg::NeutronMsg::CreateDenom;
+use neutron_sdk::bindings::msg::NeutronMsg::{CreateDenom, SetBeforeSendHook};
 
 use crate::error::ContractError;
 use crate::execute;
 use crate::hooks;
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, MsgCreateDenomResponse, MsgSetBeforeSendHook, QueryMsg,
-    SudoMsg,
+    ExecuteMsg, InstantiateMsg, MigrateMsg, MsgCreateDenomResponse, QueryMsg, SudoMsg,
 };
 use crate::queries;
 use crate::state::{DENOM, IS_FROZEN, OWNER};
@@ -73,11 +72,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, 
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(
-    deps: DepsMut,
-    env: Env,
-    msg: Reply,
-) -> Result<Response<MsgSetBeforeSendHook>, ContractError> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<NeutronMsg>, ContractError> {
     // after instantiate contract
     if msg.id == CREATE_DENOM_REPLY_ID {
         let MsgCreateDenomResponse { new_token_denom } = msg.result.try_into()?;
@@ -86,11 +81,10 @@ pub fn reply(
         // set beforesend hook to this contract
         // this will trigger sudo endpoint before any bank send
         // which makes blacklisting / freezing possible
-        let msg_set_beforesend_hook: CosmosMsg<MsgSetBeforeSendHook> =
-            cosmwasm_std::CosmosMsg::Custom(MsgSetBeforeSendHook {
-                sender: env.contract.address.to_string(),
+        let msg_set_beforesend_hook: CosmosMsg<NeutronMsg> =
+            cosmwasm_std::CosmosMsg::Custom(SetBeforeSendHook {
                 denom: new_token_denom.clone(),
-                cosmwasm_address: env.contract.address.to_string(),
+                contract_addr: env.contract.address.to_string(),
             })
             .into();
 

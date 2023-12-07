@@ -46,7 +46,7 @@ thiserror = { version = "1.0.31" }
 # This is a library that simplifies working with IBC response packets (acknowledgments, timeouts),
 # contains bindings for the Neutron ICA adapter module (messages, responses, etc.) and provides
 # various helper functions.
-neutron-sdk = "0.7.0"
+neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", branch = "sdk/47" }
 
 
 [dev-dependencies]
